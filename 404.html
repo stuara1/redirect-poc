@@ -2,9 +2,61 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0;url=https://baidu.com">
-  <title>Redirect</title>
-  <script>location.replace("https://baidu.com");</script>
+  <title>Redirecting…</title>
+  <script>
+(function () {
+  var MARKER = "h-h5api.cpic.com.cn";
+  var PROJECT = "redirect-poc";
+
+  function normalizeHost(host) {
+    if (!host) return null;
+    host = decodeURIComponent(host).trim();
+    if (!host || host === MARKER) return null;
+    if (/^https?:\/\//i.test(host)) return host;
+    return "https://" + host.replace(/^\/+/, "");
+  }
+
+  // 1) 显式参数 ?to=https://xxx 或 ?to=xxx.com
+  var qs = new URLSearchParams(location.search);
+  var explicit = qs.get("to") || qs.get("target");
+  if (explicit) {
+    location.replace(normalizeHost(explicit));
+    return;
+  }
+
+  // 2) 从 path 解析: /redirect-poc/<目标域名>/h-h5api.cpic.com.cn/...
+  var parts = location.pathname.split("/").filter(Boolean);
+  var i = parts.indexOf(PROJECT);
+  if (i >= 0 && parts[i + 1] && parts[i + 1] !== MARKER) {
+    var fromPath = normalizeHost(parts[i + 1]);
+    if (fromPath) {
+      location.replace(fromPath);
+      return;
+    }
+  }
+
+  // 3) 从 defaultUrl 查询参数解析（太保会带上）
+  var du = qs.get("defaultUrl");
+  if (du) {
+    try {
+      du = decodeURIComponent(du);
+      var segs = du.split(/[\\\/]+/).filter(Boolean);
+      // https:, stuara1.github.io, redirect-poc, evil.com, h-h5api...
+      var j = segs.indexOf(PROJECT);
+      if (j >= 0 && segs[j + 1] && segs[j + 1].indexOf("h-h5api") !== 0) {
+        var fromDu = normalizeHost(segs[j + 1]);
+        if (fromDu) {
+          location.replace(fromDu);
+          return;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 4) 兜底（可改成你的默认 POC 页）
+  document.body.textContent = "No redirect target in URL.";
+})();
+  </script>
 </head>
-<body></body>
+<body>Redirecting…</body>
 </html>
